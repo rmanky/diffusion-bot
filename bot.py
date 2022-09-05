@@ -29,7 +29,7 @@ async def timed_job():
     activity = Activity(type=ActivityType.watching, name=random_status)
     await bot.change_presence(status=Status.online, activity=activity)
 
-@bot.slash_command(description="Feeds a prompt to `Stability Diffusion`")
+@bot.slash_command(description="Feed a prompt to `Stability Diffusion`")
 async def dream(inter, prompt: str, face_fix: bool):
     """Generate an image from a text prompt using the stable-diffusion model"""
     print(f'📝 Dream request received from {inter.author.name}')
@@ -61,9 +61,9 @@ async def dream(inter, prompt: str, face_fix: bool):
         await inter.edit_original_message(content=f"> 😔 Sorry, an unrecoverable error has occured!")
         print(f'-- {err}')
 
-@bot.slash_command(description="Feeds an image to `GFPGAN`")
-async def fix(inter, url: str):
-    print(f'📝 Fix request received from {inter.author.name}')
+@bot.slash_command(name="face_fix", description="Feed an image of a face to `GFPGAN`")
+async def face_fix(inter, url: str):
+    print(f'📝 Face fix request received from {inter.author.name}')
 
     await inter.response.send_message(f">>> Image sent to `GFPGAN`")
     try:

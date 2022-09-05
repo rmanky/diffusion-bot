@@ -58,7 +58,7 @@ async def dream(inter, prompt: str, face_fix: bool):
         await inter.edit_original_message(content=f"> ⚠️ NSFW content, unable to generate!")
         print(f'-- {err}')
     except Exception as err:
-        await inter.edit_original_message(content=f"> 😔 Sorry, an unrecoverable error has occured!")
+        await inter.edit_original_message(content=f"> 😔 Sorry, an unrecoverable error has occured!\nFull details: `{err}`")
         print(f'-- {err}')
 
 @bot.slash_command(name="face_fix", description="Feed an image of a face to `GFPGAN`")
@@ -74,7 +74,7 @@ async def face_fix(inter, url: str):
         embed.set_image(fixed_image)
         await inter.edit_original_message(content='', embed=embed)
     except Exception as err:
-        await inter.edit_original_message(content=f"> 😔 Sorry, an unrecoverable error has occured!")
+        await inter.edit_original_message(content=f"> 😔 Sorry, an unrecoverable error has occured!\nFull details: `{err}`")
         print(f'-- {err}')
 
 bot.run(os.environ["DISCORD_TOKEN"])

@@ -48,7 +48,7 @@ async def dream(inter, prompt: str, face_fix: bool):
         if not face_fix:
             return
 
-        fixed_image = face_model.predict(img=original_image)
+        fixed_image = face_model.predict(img=original_image, scale=1.5)
         print(f'-- Fixed image: {fixed_image}')
         embed.title = '✅ Completed'
         embed.add_field('Original Image', f'Here is your [original image]({original_image}) before GFPGAN')
@@ -68,7 +68,7 @@ async def face_fix(inter, url: str):
     await inter.response.send_message(f">>> Image sent to `GFPGAN`")
     try:
         embed = Embed()
-        fixed_image = face_model.predict(img=url)
+        fixed_image = face_model.predict(img=url, scale=1.5)
         print(f'-- Fixed image: {fixed_image}')
         embed.title = '✅ Completed'
         embed.set_image(fixed_image)

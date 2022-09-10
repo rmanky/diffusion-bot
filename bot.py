@@ -1,17 +1,37 @@
 import os
 import random
+from tkinter import E
 import replicate
 from replicate.exceptions import ModelError
 from disnake.ext import commands
-from disnake import Embed, Status, Activity, ActivityType
+from disnake import Embed, Status, Activity, ActivityType, Attachment
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from func_timeout import func_set_timeout, FunctionTimedOut
 
 load_dotenv()
 
+VERSION = 1.1
+CHANGE_LIST = {
+    'Updated Commands': """
+    - `/face_fix` is now `/fix`
+    - `/dream` will default `fix` to `False`
+    """,
+    'New Model': """
+    - GFGAN has been replaced with CODEFORMER
+    - Model will now output fullscale (512x512) image
+    """,
+    'Embed Everywhere': """
+    - The bot will now retun Embeds for all responses
+    """,
+    'Timeouts': """
+    - In the event calling Replicate takes too long, the bot will timeout and return an error
+    """
+}
+
 bot = commands.InteractionBot()
-stable_model = replicate.models.get("stability-ai/stable-diffusion")
-face_model = replicate.models.get("tencentarc/gfpgan")
+stable_model = replicate.models.get('stability-ai/stable-diffusion')
+face_model = replicate.models.get('sczhou/codeformer')
 sched = AsyncIOScheduler()
 
 status_list = ['people dream', 'the sunset', 'the sky fall', 'you 👀', 'the trees', 'and learning', 'the leaves fall', 'for aliens 👽', 'you break my heart 💔']
@@ -25,56 +45,85 @@ async def on_ready():
 
 async def timed_job():
     random_status = random.choice(status_list)
-    print(f'✅ Set status to "Watching {random_status}"')
     activity = Activity(type=ActivityType.watching, name=random_status)
     await bot.change_presence(status=Status.online, activity=activity)
 
-@bot.slash_command(description="Feed a prompt to `Stability Diffusion`")
-async def dream(inter, prompt: str, face_fix: bool):
-    """Generate an image from a text prompt using the stable-diffusion model"""
+@bot.slash_command(description='Display the latest updates')
+async def info(inter):
+    embed = Embed()
+    embed.title = f'🤖 DiffusionBot Version {VERSION}'
+    for key, value in CHANGE_LIST.items():
+        embed.add_field(name=key,value=value,inline=False)
+    await inter.response.send_message(embed=embed)
+
+@bot.slash_command(description='Feed a prompt to Stabile Diffusion')
+async def dream(inter, prompt: str, fix: bool = False):
     print(f'📝 Dream request received from {inter.author.name}')
 
-    await inter.response.send_message(f">>> Prompt: `{prompt}`\nFace Fix: {face_fix}\n")
+    embed = Embed()
+    embed.title = '⏳ Request Received'
+    embed.description = prompt
+    await inter.response.send_message(embed=embed)
 
     try:
-        embed = Embed(description=prompt)
+        output_image = stable_diffusion(prompt) 
+        embed.title = '⚠️ Applying CODEFORMER' if fix else '✅ Completed'
+        embed.set_image(output_image)
+        await inter.edit_original_message(embed=embed)
 
-        original_image = stable_model.predict(prompt=prompt)[0]
-        print(f'-- Original image: {original_image}')
-        embed.title = '⚠️ Applying GFPGAN...' if face_fix else '✅ Completed'
-        embed.set_image(original_image)
-        await inter.edit_original_message(content='', embed=embed)
-
-        if not face_fix:
+        if not fix:
             return
 
-        fixed_image = face_model.predict(img=original_image, scale=1.5)
-        print(f'-- Fixed image: {fixed_image}')
+        fixed_image = codeformer(output_image)
         embed.title = '✅ Completed'
-        embed.add_field('Original Image', f'Here is your [original image]({original_image}) before GFPGAN')
+        embed.add_field('Original Image', f'Here is your [original image]({output_image}) before CODEFORMER')
         embed.set_image(fixed_image)
-        await inter.edit_original_message(content='', embed=embed)
+        await inter.edit_original_message(embed=embed)
     except ModelError as err:
-        await inter.edit_original_message(content=f"> ⚠️ NSFW content, unable to generate!")
-        print(f'-- {err}')
+        embed.title = '😳 NSFW Content'
+        embed.description = f'{prompt}\n`{err}`'
+        await inter.edit_original_message(embed=embed)
+    except FunctionTimedOut as err:
+        embed.title = '⏰ Function Timed Out'
+        embed.description = f'{prompt}\nReplicate timed out after a few seconds, sorry :('
+        await inter.edit_original_message(embed=embed)
     except Exception as err:
-        await inter.edit_original_message(content=f"> 😔 Sorry, an unrecoverable error has occured!\nFull details: `{err}`")
-        print(f'-- {err}')
+        embed.title = '😔 An Error Occured'
+        embed.description = f'{prompt}\n`{err}`'
+        await inter.edit_original_message(embed=embed)
 
-@bot.slash_command(name="face_fix", description="Feed an image of a face to `GFPGAN`")
-async def face_fix(inter, url: str):
+@bot.slash_command(description='Feed an image of a face to CODEFORMER')
+async def fix(inter, input_image: Attachment):
     print(f'📝 Face fix request received from {inter.author.name}')
 
-    await inter.response.send_message(f">>> Image sent to `GFPGAN`")
+    embed = Embed()
+    embed.title = '⏳ Request Received'
+    embed.description = 'Waiting on CODEFORMER...'
+    await inter.response.send_message(content='', embed=embed)    
     try:
-        embed = Embed()
-        fixed_image = face_model.predict(img=url, scale=1.5)
-        print(f'-- Fixed image: {fixed_image}')
+        output_image = codeformer(input_image.url)
         embed.title = '✅ Completed'
-        embed.set_image(fixed_image)
+        embed.description = ''
+        embed.set_image(output_image)
         await inter.edit_original_message(content='', embed=embed)
+    except FunctionTimedOut as err:
+        embed.title = '⏰ Function Timed Out'
+        embed.description = 'Replicate timed out after a few seconds, sorry :('
+        await inter.edit_original_message(embed=embed)
     except Exception as err:
-        await inter.edit_original_message(content=f"> 😔 Sorry, an unrecoverable error has occured!\nFull details: `{err}`")
-        print(f'-- {err}')
+        embed.title = '😔 An Error Occured'
+        embed.description = err
+        await inter.edit_original_message(content='', embed=embed)
 
-bot.run(os.environ["DISCORD_TOKEN"])
+@func_set_timeout(30)
+def stable_diffusion(prompt: str):
+    output = stable_model.predict(prompt=prompt)[0]
+    return output
+
+@func_set_timeout(60)
+def codeformer(image: str):
+    output = face_model.predict(image=image, codeformer_fidelity=0.5, upscale=1,
+        background_enhance=False, face_upsample=False)
+    return output
+
+bot.run(os.environ['DISCORD_TOKEN'])

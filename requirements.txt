@@ -3,3 +3,4 @@ packaging==21.3
 python-dotenv==0.20.0
 replicate==0.0.1a15
 apscheduler==3.9.1
+func-timeout==4.3.5

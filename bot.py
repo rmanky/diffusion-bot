@@ -1,6 +1,5 @@
 import os
 import random
-from tkinter import E
 import replicate
 from replicate.exceptions import ModelError
 from disnake.ext import commands

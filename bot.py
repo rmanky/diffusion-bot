@@ -143,8 +143,8 @@ async def horde(inter, prompt: str):
         io.BytesIO(base64.b64decode(image_bytes)),
         filename=f"{prompt.replace(' ','_')}.webp",
     )
-    embed.title = "✅ Completed"
     embed.clear_fields()
+    embed.title = "✅ Completed"
     embed.add_field(name="Prompt", value=prompt, inline=False)
     embed.set_image(file=file)
     await inter.edit_original_response(embed=embed)
@@ -224,7 +224,10 @@ def stable_horde_send(prompt: str):
         "POST",
         "https://stablehorde.net/api/v2/generate/async",
         body=encoded_request_body,
-        headers={"Content-Type": "application/json", "apikey": "0000000000"},
+        headers={
+            "Content-Type": "application/json",
+            "apikey": os.environ["HORDE_TOKEN"],
+        },
     )
     generate_response = json.loads(generate_request.data.decode())
     return generate_response["id"]
@@ -236,7 +239,10 @@ def stable_horde_poll(id: str):
     check_request = http.request(
         "GET",
         f"https://stablehorde.net/api/v2/generate/check/{id}",
-        headers={"Content-Type": "application/json", "apikey": "0000000000"},
+        headers={
+            "Content-Type": "application/json",
+            "apikey": os.environ["HORDE_TOKEN"],
+        },
     )
     check_response = json.loads(check_request.data.decode())
 
@@ -255,7 +261,10 @@ def stable_horde_get(id: str):
     get_request = http.request(
         "GET",
         f"https://stablehorde.net/api/v2/generate/status/{id}",
-        headers={"Content-Type": "application/json", "apikey": "0000000000"},
+        headers={
+            "Content-Type": "application/json",
+            "apikey": os.environ["HORDE_TOKEN"],
+        },
     )
     get_response = json.loads(get_request.data.decode())
     return get_response["generations"][0]["img"]

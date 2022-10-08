@@ -23,13 +23,16 @@ CHANGE_LIST = {
     - It uses the Euler Ancestral sampler at 32 steps, which can give more _detailed_ outputs
     - The queue can be quite long, the bot will check it every `max(wait * 0.1, 5)` seconds
     """,
+    "NSFW Warning": """
+    - Images contained in an embed can **not** be marked as a spoiler (blame Discord)
+    - Yes I've tried "ballsack", it works as expected...
+    """,
     "Simplified Commands": """
     - The `fix` parameter has been removed from `/dream` for simplicity, please use `/fix` instead
     - Commands now use a unified generic error handler
     """,
-    "NSFW Warning": """
-    - Images contained in an embed can **not** be marked as a spoiler (blame Discord)
-    - Yes I've tried "ballsack", it works as expected...
+    "Goodbye Fly, Hello Render": """
+    - Switched to Render for backend hosting, Fly was fly but just couldn't fly
     """,
 }
 
@@ -141,12 +144,13 @@ async def horde(inter, prompt: str):
     image_bytes = await stable_horde_get(id)
     file = File(
         io.BytesIO(base64.b64decode(image_bytes)),
-        filename=f"{prompt.replace(' ','_')}.webp",
+        filename=f"result.webp",
     )
+
     embed.clear_fields()
     embed.title = "✅ Completed"
-    embed.add_field(name="Prompt", value=prompt, inline=False)
     embed.set_image(file=file)
+    embed.add_field(name="Prompt", value=prompt, inline=False)
     await inter.edit_original_response(embed=embed)
 
 

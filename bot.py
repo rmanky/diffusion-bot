@@ -14,26 +14,14 @@ import io, base64
 
 load_dotenv()
 
-EMOTE = "👺"
-VERSION = 1.3
-IMAGE = "https://media0.giphy.com/media/7YDaJq1YJmlt1sHHjg/giphy.gif"
+EMOTE = "✈️"
+VERSION = "1.3.1"
+IMAGE = "https://media1.giphy.com/media/iemyQLx2kEJpeCbX9O/giphy.gif"
 CHANGE_LIST = {
-    "Welcome to the Horde": """
-    - Added a new command, `/horde`, that will send commands to [Stable Horde](https://stablehorde.net)
-    - It uses the Euler Ancestral sampler at 32 steps, which can give more _detailed_ outputs
-    - The queue can be quite long, the bot will check it every `max(wait * 0.1, 5)` seconds
-    """,
-    "NSFW Warning": """
-    - Images contained in an embed can **not** be marked as a spoiler (blame Discord)
-    - Yes I've tried "ballsack", it works as expected...
-    """,
-    "Simplified Commands": """
-    - The `fix` parameter has been removed from `/dream` for simplicity, please use `/fix` instead
-    - Commands now use a unified generic error handler
-    """,
-    "Goodbye Fly, Hello Render": """
-    - Switched to Render for backend hosting, Fly was fly but just couldn't fly
-    """,
+    "We Fly Again": """
+    - The bot is back, rip Render
+    - Fly was cooler anyways I promise
+    """
 }
 
 bot = commands.InteractionBot()

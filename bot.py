@@ -5,7 +5,16 @@ import urllib3
 import random
 import replicate
 from disnake.ext import commands
-from disnake import Embed, Status, Activity, ActivityType, Attachment, File
+from disnake import (
+    ChannelType,
+    Embed,
+    Status,
+    Activity,
+    ActivityType,
+    Attachment,
+    File,
+    TextChannel,
+)
 from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from func_timeout import func_set_timeout, FunctionTimedOut
@@ -14,13 +23,12 @@ import io, base64
 
 load_dotenv()
 
-EMOTE = "✈️"
-VERSION = "1.3.1"
-IMAGE = "https://media1.giphy.com/media/iemyQLx2kEJpeCbX9O/giphy.gif"
+EMOTE = "💼"
+VERSION = "1.3.2"
+IMAGE = "https://i.imgur.com/Na97Qj3.gif"
 CHANGE_LIST = {
-    "We Fly Again": """
-    - The bot is back, rip Render
-    - Fly was cooler anyways I promise
+    "Let's Keep it Civil": """
+    - `/horde` will error if used in a channel that hasn't been marked #NSFW
     """
 }
 
@@ -97,6 +105,17 @@ async def dream(inter, prompt: str):
 async def horde(inter, prompt: str):
     await inter.response.defer()
     print(f"📝 Horde request received from {inter.author.name}")
+
+    if inter.channel.type != ChannelType.private and not TextChannel.is_nsfw(
+        inter.channel
+    ):
+        embed = Embed()
+        embed.title = "🛑 Stop Right There!"
+        embed.add_field(
+            name="Error", value="This is not a NSFW channel. Do better.", inline=False
+        )
+        await inter.edit_original_response(embed=embed)
+        return
 
     embed = Embed()
     embed.title = "👺 For the Horde!"

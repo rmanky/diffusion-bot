@@ -23,13 +23,21 @@ import io, base64
 
 load_dotenv()
 
-EMOTE = "💼"
-VERSION = "1.3.2"
-IMAGE = "https://i.imgur.com/Na97Qj3.gif"
+EMOTE = "🪰"
+VERSION = "1.3.3"
+IMAGE = "https://i.imgur.com/rNrKY.gif"
 CHANGE_LIST = {
-    "Let's Keep it Civil": """
-    - `/horde` will error if used in a channel that hasn't been marked #NSFW
-    """
+    "Call an Exterminator": """
+    - Stable Horde decided to change their API spec without a version bump
+    - One might then ask, what is the point of versioning?
+    """,
+    "Horde, not Horny": """
+    - Added a `nsfw` flag to `/horde` requests so that non-NSFW images can be generated in regular channels
+    - If a NSFW image is generated with `nsfw` set to `false`, it will return an error
+    """,
+    "Gaze into the Machine": """
+    - Added a new command, `/perf`, to print out performance metrics from the Stable Horde
+    """,
 }
 
 bot = commands.InteractionBot()
@@ -37,6 +45,7 @@ stable_model = replicate.models.get("stability-ai/stable-diffusion")
 face_model = replicate.models.get("sczhou/codeformer")
 sched = AsyncIOScheduler()
 http = urllib3.PoolManager()
+black_image = ""
 
 status_list = [
     "for spooky skeletons",
@@ -53,6 +62,10 @@ async def on_ready():
     await timed_job()
     sched.add_job(timed_job, "interval", minutes=60)
     sched.start()
+    with open("black_image.txt") as f:
+        global black_image
+        black_image = f.read()
+        f.close()
 
 
 @bot.event
@@ -64,6 +77,7 @@ async def on_slash_command_error(inter, error):
         await inter.edit_original_response(embed=embed)
     else:
         await inter.response.send_message(embed=embed)
+    print(error)
 
 
 async def timed_job():
@@ -102,17 +116,21 @@ async def dream(inter, prompt: str):
 
 @bot.slash_command(description="Feed a prompt to the Stable Horde")
 @commands.max_concurrency(3)
-async def horde(inter, prompt: str):
+async def horde(inter, prompt: str, nsfw: bool):
     await inter.response.defer()
     print(f"📝 Horde request received from {inter.author.name}")
 
-    if inter.channel.type != ChannelType.private and not TextChannel.is_nsfw(
+    channelSFW = inter.channel.type != ChannelType.private and not TextChannel.is_nsfw(
         inter.channel
-    ):
+    )
+
+    if channelSFW and nsfw:
         embed = Embed()
-        embed.title = "🛑 Stop Right There!"
+        embed.title = "🛑 Invalid Usage"
         embed.add_field(
-            name="Error", value="This is not a NSFW channel. Do better.", inline=False
+            name="Illegal Use of NSFW",
+            value="`/horde` can not be used to generate NSFW images in a channel that isn't marked NSFW.",
+            inline=False,
         )
         await inter.edit_original_response(embed=embed)
         return
@@ -124,7 +142,7 @@ async def horde(inter, prompt: str):
     embed.add_field(name="Wait Time", value="999s / 999s", inline=False)
     await inter.edit_original_response(embed=embed)
 
-    id = await stable_horde_send(prompt)
+    id = await stable_horde_send(prompt, nsfw)
     longest_wait = 0
     while True:
         status = await stable_horde_poll(id)
@@ -149,6 +167,10 @@ async def horde(inter, prompt: str):
         await inter.edit_original_response(embed=embed)
         await asyncio.sleep(max(wait * 0.1, 5))
     image_bytes = await stable_horde_get(id)
+    if image_bytes == black_image:
+        raise Exception(
+            "The model generated a NSFW image. Please try again using the `nsfw` attribute."
+        )
     file = File(
         io.BytesIO(base64.b64decode(image_bytes)),
         filename=f"result.webp",
@@ -158,6 +180,41 @@ async def horde(inter, prompt: str):
     embed.title = "✅ Completed"
     embed.set_image(file=file)
     embed.add_field(name="Prompt", value=prompt, inline=False)
+    await inter.edit_original_response(embed=embed)
+
+
+@bot.slash_command(description="Retrieve performance metrics from the Stable Horde")
+@commands.max_concurrency(3)
+async def perf(inter):
+    await inter.response.defer()
+    print(f"📝 Performance request received from {inter.author.name}")
+
+    perf = await stable_horde_perf()
+    queue = perf["queue"]
+    workers = perf["workers"]
+    mps_queue = perf["mps_queue"]
+    mps_hist = perf["mps_hist"]
+
+    embed = Embed()
+    embed.title = "🏁 Horde Metrics"
+    embed.add_field(
+        name="Queue",
+        value=f"There are **{queue} requests** in the queue.",
+        inline=False,
+    )
+    embed.add_field(
+        name="Workers", value=f"There are **{workers} workers** online.", inline=False
+    )
+    embed.add_field(
+        name="Megapixel Steps Queue",
+        value=f"There are **{mps_queue} megapixel steps** in the queue.",
+        inline=False,
+    )
+    embed.add_field(
+        name="Megapixel Steps Performance",
+        value=f"The horde completed **{mps_hist} megapixel steps** in the past minute.",
+        inline=False,
+    )
     await inter.edit_original_response(embed=embed)
 
 
@@ -212,7 +269,7 @@ def codeformer(image: str):
 
 @wrap
 @func_set_timeout(10)
-def stable_horde_send(prompt: str):
+def stable_horde_send(prompt: str, nsfw: bool):
     request_body = {
         "params": {
             "sampler_name": "k_euler_a",
@@ -225,8 +282,8 @@ def stable_horde_send(prompt: str):
             "n": 1,
         },
         "prompt": prompt,
-        "nsfw": "true",
-        "censor_nsfw": "false",
+        "nsfw": nsfw,
+        "censor_nsfw": not nsfw,
     }
 
     encoded_request_body = json.dumps(request_body)
@@ -241,6 +298,8 @@ def stable_horde_send(prompt: str):
         },
     )
     generate_response = json.loads(generate_request.data.decode())
+    if "errors" in generate_response:
+        raise Exception(generate_response["errors"])
     return generate_response["id"]
 
 
@@ -279,6 +338,26 @@ def stable_horde_get(id: str):
     )
     get_response = json.loads(get_request.data.decode())
     return get_response["generations"][0]["img"]
+
+
+@wrap
+@func_set_timeout(10)
+def stable_horde_perf():
+    perf_request = http.request(
+        "GET",
+        f"https://stablehorde.net/api/v2/status/performance",
+        headers={
+            "Content-Type": "application/json",
+            "apikey": os.environ["HORDE_TOKEN"],
+        },
+    )
+    perf_response = json.loads(perf_request.data.decode())
+    return {
+        "queue": perf_response["queued_requests"],
+        "workers": perf_response["worker_count"],
+        "mps_queue": perf_response["queued_megapixelsteps"],
+        "mps_hist": perf_response["past_minute_megapixelsteps"],
+    }
 
 
 bot.run(os.environ["DISCORD_TOKEN"])

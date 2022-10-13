@@ -23,22 +23,22 @@ import io, base64
 
 load_dotenv()
 
-EMOTE = "🪰"
-VERSION = "1.3.3"
-IMAGE = "https://i.imgur.com/rNrKY.gif"
+EMOTE = "🦦"
+VERSION = "1.3.4"
+IMAGE = "https://i.gifer.com/cb5.gif"
 CHANGE_LIST = {
-    "Call an Exterminator": """
-    - Stable Horde decided to change their API spec without a version bump
-    - One might then ask, what is the point of versioning?
+    "A Learning Experience": """
+    - `FunctionTimedOut` doesn't extend `BaseException`
+    - [Apparently this is intentional... strange](https://github.com/kata198/func_timeout/issues/5#issuecomment-513441434)
     """,
-    "Horde, not Horny": """
-    - Added a `nsfw` flag to `/horde` requests so that non-NSFW images can be generated in regular channels
-    - If a NSFW image is generated with `nsfw` set to `false`, it will return an error
-    """,
-    "Gaze into the Machine": """
-    - Added a new command, `/perf`, to print out performance metrics from the Stable Horde
+    "Patience, For Now": """
+    - Replicate timeout for Stable Diffusion increased from **30** to **45** seconds
+    - [Are we born not knowing, or are we born knowing all?](https://www.youtube.com/watch?v=c9VQye6P8k0&t=99s)
     """,
 }
+
+DIFFUSION_TIMEOUT = 45
+CODEFORMER_TIMEOUT = 60
 
 bot = commands.InteractionBot()
 stable_model = replicate.models.get("stability-ai/stable-diffusion")
@@ -108,7 +108,10 @@ async def dream(inter, prompt: str):
     embed.add_field(name="Prompt", value=prompt, inline=False)
     await inter.edit_original_response(embed=embed)
 
-    output_image = await stable_diffusion(prompt)
+    try:
+        output_image = await stable_diffusion(prompt)
+    except FunctionTimedOut:
+        raise Exception(f"Replicate timed out after {DIFFUSION_TIMEOUT} seconds.")
     embed.title = "✅ Completed"
     embed.set_image(output_image)
     await inter.edit_original_response(embed=embed)
@@ -229,7 +232,10 @@ async def fix(inter, input_image: Attachment):
     embed.add_field(name="Status", value="Waiting on CODEFORMER...", inline=False)
     await inter.edit_original_response(content="", embed=embed)
 
-    output_image = await codeformer(input_image.url)
+    try:
+        output_image = await codeformer(input_image.url)
+    except FunctionTimedOut:
+        raise Exception(f"Replicate timed out after {CODEFORMER_TIMEOUT} seconds.")
     embed.title = "✅ Completed"
     embed.set_image(output_image)
     embed.clear_fields()
@@ -248,14 +254,14 @@ def wrap(func):
 
 
 @wrap
-@func_set_timeout(30)
+@func_set_timeout(DIFFUSION_TIMEOUT)
 def stable_diffusion(prompt: str):
     output = stable_model.predict(prompt=prompt)[0]
     return output
 
 
 @wrap
-@func_set_timeout(60)
+@func_set_timeout(CODEFORMER_TIMEOUT)
 def codeformer(image: str):
     output = face_model.predict(
         image=image,
@@ -268,7 +274,6 @@ def codeformer(image: str):
 
 
 @wrap
-@func_set_timeout(10)
 def stable_horde_send(prompt: str, nsfw: bool):
     request_body = {
         "params": {
@@ -304,7 +309,6 @@ def stable_horde_send(prompt: str, nsfw: bool):
 
 
 @wrap
-@func_set_timeout(10)
 def stable_horde_poll(id: str):
     check_request = http.request(
         "GET",
@@ -326,7 +330,6 @@ def stable_horde_poll(id: str):
 
 
 @wrap
-@func_set_timeout(10)
 def stable_horde_get(id: str):
     get_request = http.request(
         "GET",
@@ -341,7 +344,6 @@ def stable_horde_get(id: str):
 
 
 @wrap
-@func_set_timeout(10)
 def stable_horde_perf():
     perf_request = http.request(
         "GET",

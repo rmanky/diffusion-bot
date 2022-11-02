@@ -23,18 +23,14 @@ import io, base64
 
 load_dotenv()
 
-EMOTE = "🦦"
-VERSION = "1.3.4"
-IMAGE = "https://i.gifer.com/cb5.gif"
+EMOTE = "🍌"
+VERSION = "1.3.5"
+IMAGE = "https://storage.googleapis.com/gweb-uniblog-publish-prod/original_images/tenor_1.gif"
 CHANGE_LIST = {
-    "A Learning Experience": """
-    - `FunctionTimedOut` doesn't extend `BaseException`
-    - [Apparently this is intentional... strange](https://github.com/kata198/func_timeout/issues/5#issuecomment-513441434)
-    """,
-    "Patience, For Now": """
-    - Replicate timeout for Stable Diffusion increased from **30** to **45** seconds
-    - [Are we born not knowing, or are we born knowing all?](https://www.youtube.com/watch?v=c9VQye6P8k0&t=99s)
-    """,
+    "It's Not Halloween, Apparently?": """
+    - Look it's been a long Tuesday
+    - Hopefully the next time you see this, it's from Rust! 🦀
+    """
 }
 
 DIFFUSION_TIMEOUT = 45
@@ -48,11 +44,15 @@ http = urllib3.PoolManager()
 black_image = ""
 
 status_list = [
-    "for spooky skeletons",
-    "people carve pumpkins",
-    "out for ghosts",
-    "scary movies",
-    "for trick-or-treaters",
+    "people dream",
+    "the sunset",
+    "the sky fall",
+    "you 👀",
+    "the trees",
+    "and learning",
+    "the leaves fall",
+    "for aliens 👽",
+    "you break my heart 💔",
 ]
 
 
